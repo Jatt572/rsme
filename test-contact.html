@@ -1,0 +1,221 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Contact Form Test</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            padding: 20px;
+            background: #f5f5f5;
+        }
+        .test-container {
+            max-width: 600px;
+            margin: 0 auto;
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        .form-group {
+            margin-bottom: 15px;
+        }
+        .form-group input,
+        .form-group textarea {
+            width: 100%;
+            padding: 10px;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+            font-size: 16px;
+        }
+        .form-group textarea {
+            height: 100px;
+            resize: vertical;
+        }
+        button {
+            background: #2563eb;
+            color: white;
+            border: none;
+            padding: 12px 24px;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 16px;
+        }
+        button:hover {
+            background: #1d4ed8;
+        }
+        .notification {
+            padding: 10px;
+            margin: 10px 0;
+            border-radius: 5px;
+            color: white;
+        }
+        .notification-success {
+            background: #10b981;
+        }
+        .notification-error {
+            background: #ef4444;
+        }
+        .notification-info {
+            background: #2563eb;
+        }
+    </style>
+</head>
+<body>
+    <div class="test-container">
+        <h1>Contact Form Test</h1>
+        <p>This page tests the contact form functionality to ensure emails are sent to chauhanjatin022@gmail.com</p>
+        
+        <form id="contact-form">
+            <div class="form-group">
+                <input type="text" name="name" placeholder="Your Name" required>
+            </div>
+            <div class="form-group">
+                <input type="email" name="email" placeholder="Your Email" required>
+            </div>
+            <div class="form-group">
+                <input type="text" name="subject" placeholder="Subject" required>
+            </div>
+            <div class="form-group">
+                <textarea name="message" placeholder="Your Message" rows="5" required></textarea>
+            </div>
+            <button type="submit">Send Message</button>
+        </form>
+        
+        <div id="notifications"></div>
+        
+        <div style="margin-top: 20px; padding: 15px; background: #f0f0f0; border-radius: 5px;">
+            <h3>Test Instructions:</h3>
+            <ol>
+                <li>Fill out the form above</li>
+                <li>Click "Send Message"</li>
+                <li>The system will try to send via PHP backend first</li>
+                <li>If PHP fails, it will open your email client</li>
+                <li>Check your email (chauhanjatin022@gmail.com) for the message</li>
+            </ol>
+        </div>
+    </div>
+
+    <script>
+        // Contact form functionality (same as main script)
+        function showNotification(message, type = 'info') {
+            const notifications = document.getElementById('notifications');
+            const notification = document.createElement('div');
+            notification.className = `notification notification-${type}`;
+            notification.textContent = message;
+            notifications.appendChild(notification);
+            
+            // Auto remove after 5 seconds
+            setTimeout(() => {
+                if (notification.parentNode) {
+                    notification.parentNode.removeChild(notification);
+                }
+            }, 5000);
+        }
+
+        function initContactForm() {
+            const contactForm = document.getElementById('contact-form');
+            
+            if (contactForm) {
+                contactForm.addEventListener('submit', function(e) {
+                    e.preventDefault();
+                    
+                    // Get form data
+                    const formData = new FormData(contactForm);
+                    const name = formData.get('name');
+                    const email = formData.get('email');
+                    const subject = formData.get('subject');
+                    const message = formData.get('message');
+                    
+                    // Validate form data
+                    if (!name || !email || !subject || !message) {
+                        showNotification('Please fill in all fields', 'error');
+                        return;
+                    }
+                    
+                    // Validate email format
+                    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+                    if (!emailRegex.test(email)) {
+                        showNotification('Please enter a valid email address', 'error');
+                        return;
+                    }
+                    
+                    // Send email
+                    sendEmail(name, email, subject, message);
+                });
+            }
+        }
+
+        function sendEmail(name, email, subject, message) {
+            // Show loading notification
+            showNotification('Sending message...', 'info');
+            
+            // Prepare data for PHP backend
+            const emailData = {
+                name: name,
+                email: email,
+                subject: subject,
+                message: message
+            };
+            
+            // Try to send via PHP backend first
+            fetch('send-email.php', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify(emailData)
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    showNotification(data.message, 'success');
+                    document.getElementById('contact-form').reset();
+                } else {
+                    // Fallback to mailto if PHP fails
+                    fallbackToMailto(name, email, subject, message);
+                }
+            })
+            .catch(error => {
+                console.error('PHP email failed:', error);
+                // Fallback to mailto
+                fallbackToMailto(name, email, subject, message);
+            });
+        }
+
+        function fallbackToMailto(name, email, subject, message) {
+            // Create email content
+            const emailSubject = `Portfolio Contact: ${subject}`;
+            const emailBody = `
+New message from your portfolio website:
+
+Name: ${name}
+Email: ${email}
+Subject: ${subject}
+
+Message:
+${message}
+
+---
+This message was sent from your portfolio contact form.
+            `.trim();
+            
+            // Create mailto link
+            const mailtoLink = `mailto:chauhanjatin022@gmail.com?subject=${encodeURIComponent(emailSubject)}&body=${encodeURIComponent(emailBody)}`;
+            
+            // Open default email client
+            window.open(mailtoLink);
+            
+            // Show success notification
+            showNotification('Email client opened! Please send the email manually.', 'success');
+            
+            // Clear the form
+            document.getElementById('contact-form').reset();
+        }
+
+        // Initialize contact form
+        document.addEventListener('DOMContentLoaded', initContactForm);
+    </script>
+</body>
+</html> 
